@@ -454,7 +454,12 @@ html,body{height:100%;background:var(--bg);font-family:-apple-system,'Hiragino S
           <button class="settings-btn" style="flex:1" onclick="exportCSV()">CSVエクスポート</button>
           <button class="settings-btn danger" onclick="clearAll()">全データ削除</button>
         </div>
-        <p style="font-size:11px;color:var(--text3);line-height:1.6;">データはこの端末のブラウザに保存されます。定期的にCSVでバックアップを取ることをお勧めします。</p>
+        <div class="tool-row" style="margin-top:0">
+          <button class="settings-btn" style="flex:1;background:var(--blue-l);color:var(--blue-t);border-color:var(--blue);" onclick="document.getElementById('csv-import-input').click()">CSVインポート（端末移行）</button>
+          <input type="file" id="csv-import-input" accept=".csv" style="display:none" onchange="importCSV(this)">
+        </div>
+        <div id="import-result" style="display:none;font-size:12px;padding:8px 10px;border-radius:var(--radius-sm);margin-top:4px;line-height:1.6;"></div>
+        <p style="font-size:11px;color:var(--text3);line-height:1.6;margin-top:8px;">端末を変えるときは旧端末でエクスポート→新端末でインポートしてください。重複データは自動でスキップされます。</p>
       </div>
     </div>
 
@@ -896,6 +901,113 @@ function exportCSV(){
   a.click();
   URL.revokeObjectURL(url);
   toast('CSVを保存しました');
+}
+
+function importCSV(input){
+  const file=input.files[0];
+  if(!file){return;}
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const text=e.target.result.replace(/^\uFEFF/,''); // BOM除去
+      const lines=text.split('\n').map(l=>l.trim()).filter(l=>l);
+      if(lines.length<2){showImportResult('データ行がありません',false);return;}
+
+      const header=lines[0].split(',');
+      // 列インデックスを名前で取得（列順変動に対応）
+      const col=name=>header.indexOf(name);
+      const iDate=col('日付'),iTime=col('時刻'),iSys=col('収縮期(mmHg)'),iDia=col('拡張期(mmHg)');
+      const iPu=col('脈拍(bpm)'),iWt=col('体重(kg)'),iTemp=col('体温(℃)');
+      const iUrine=col('排尿回数'),iWater=col('飲水量(ml)');
+
+      if(iDate<0||iSys<0||iDia<0||iWt<0){
+        showImportResult('CSVの形式が正しくありません。このアプリでエクスポートしたCSVを使用してください。',false);
+        return;
+      }
+
+      // 薬の列を検出（列名が「薬名_朝/昼/夕」形式）
+      const medCols=[];
+      header.forEach((h,i)=>{
+        const m=h.match(/^(.+)_朝$/);
+        if(m){
+          const name=m[1];
+          const iPm=col(name+'_昼');
+          const iEv=col(name+'_夕');
+          medCols.push({name,iAm:i,iPm,iEv});
+        }
+      });
+
+      // 既存レコードの日付セットで重複チェック
+      const existingKeys=new Set(records.map(r=>r.date+'_'+r.time));
+      let added=0,skipped=0,errors=0;
+
+      const newRecords=[];
+      lines.slice(1).forEach((line,li)=>{
+        if(!line)return;
+        const cols=line.split(',');
+        try{
+          // 日付をISO形式に変換（YYYY/MM/DD → YYYY-MM-DD）
+          const dateRaw=(cols[iDate]||'').trim();
+          const dateISO=dateRaw.replace(/\//g,'-');
+          if(!dateISO.match(/^\d{4}-\d{2}-\d{2}$/)){errors++;return;}
+
+          const time=(cols[iTime]||'').trim();
+          const key=dateISO+'_'+time;
+
+          if(existingKeys.has(key)){skipped++;return;}
+
+          const sys=parseInt(cols[iSys]);
+          const dia=parseInt(cols[iDia]);
+          const wt=parseFloat(cols[iWt]);
+          if(!sys||!dia||isNaN(wt)){errors++;return;}
+
+          const rec={
+            date:dateISO,
+            time,
+            sys,dia,
+            pu:parseInt(cols[iPu])||0,
+            wt,
+            temp:iTemp>=0?parseFloat(cols[iTemp])||0:0,
+            urine:iUrine>=0?parseInt(cols[iUrine])||0:0,
+            water:iWater>=0?parseInt(cols[iWater])||0:0,
+            meds:medCols.map(mc=>({
+              name:mc.name,
+              am:parseFloat(cols[mc.iAm])||0,
+              pm:parseFloat(cols[mc.iPm])||0,
+              ev:parseFloat(cols[mc.iEv])||0
+            }))
+          };
+          newRecords.push(rec);
+          existingKeys.add(key);
+          added++;
+        }catch(err){errors++;}
+      });
+
+      records=[...records,...newRecords];
+      records.sort((a,b)=>a.date.localeCompare(b.date));
+      saveLS();
+      updateHome();
+      loadDateRecord(todayISO());
+
+      let msg=`インポート完了：${added}件追加`;
+      if(skipped)msg+=`、${skipped}件重複スキップ`;
+      if(errors)msg+=`、${errors}件読み取りエラー`;
+      showImportResult(msg, true);
+      toast(added+'件のデータをインポートしました');
+    }catch(err){
+      showImportResult('読み込みに失敗しました。ファイルを確認してください。',false);
+    }
+    input.value='';
+  };
+  reader.readAsText(file,'UTF-8');
+}
+
+function showImportResult(msg,ok){
+  const el=document.getElementById('import-result');
+  el.style.display='block';
+  el.style.background=ok?'var(--teal-l)':'var(--coral-l)';
+  el.style.color=ok?'var(--teal-t)':'var(--coral-t)';
+  el.textContent=msg;
 }
 
 function clearAll(){
