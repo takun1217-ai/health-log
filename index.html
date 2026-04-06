@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>健康ログ</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1D9E75">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="健康ログ">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root {
+  --teal:#1D9E75;--teal-d:#0F6E56;--teal-l:#E1F5EE;--teal-t:#085041;
+  --coral:#D85A30;--coral-l:#FAECE7;--coral-t:#712B13;
+  --blue:#378ADD;--blue-l:#E6F1FB;--blue-t:#0C447C;
+  --purple:#7F77DD;--purple-l:#EEEDFE;--purple-t:#26215C;
+  --amber:#BA7517;--amber-l:#FAEEDA;--amber-t:#633806;
+  --bg:#f5f5f3;--surface:#ffffff;--surface2:#f1efe8;--surface3:#e8e6df;
+  --text:#1a1a18;--text2:#5f5e5a;--text3:#888780;
+  --border:rgba(0,0,0,0.10);--border2:rgba(0,0,0,0.18);
+  --radius:12px;--radius-sm:8px;
+}
+@media(prefers-color-scheme:dark){
+  :root{
+    --bg:#1a1a18;--surface:#2c2c2a;--surface2:#444441;--surface3:#5f5e5a;
+    --text:#f1efe8;--text2:#b4b2a9;--text3:#888780;
+    --border:rgba(255,255,255,0.10);--border2:rgba(255,255,255,0.18);
+    --teal-l:#04342c;--teal-t:#9fe1cb;
+    --coral-l:#4a1b0c;--coral-t:#f0997b;
+    --blue-l:#042c53;--blue-t:#85b7eb;
+    --purple-l:#26215c;--purple-t:#afa9ec;
+    --amber-l:#412402;--amber-t:#fac775;
+  }
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;background:var(--bg);font-family:-apple-system,'Hiragino Sans','Yu Gothic UI',sans-serif;color:var(--text);}
+.app{max-width:440px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;}
+
+/* HEADER */
+.header{background:var(--surface);border-bottom:0.5px solid var(--border);padding:14px 18px 10px;position:sticky;top:0;z-index:20;}
+.header-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.app-name{font-size:17px;font-weight:600;letter-spacing:-.3px;}
+.today-lbl{font-size:12px;color:var(--text2);}
+.tabs{display:flex;gap:2px;background:var(--surface2);border-radius:var(--radius-sm);padding:3px;}
+.tab{flex:1;padding:5px 0;font-size:11px;font-weight:500;border:none;background:transparent;border-radius:6px;cursor:pointer;color:var(--text2);transition:all .15s;font-family:inherit;}
+.tab.on{background:var(--surface);color:var(--text);border:0.5px solid var(--border);}
+
+/* CONTENT */
+.content{flex:1;padding:14px;overflow-y:auto;}
+.sec{display:none;}.sec.on{display:block;}
+
+/* CARD */
+.card{background:var(--surface);border-radius:var(--radius);border:0.5px solid var(--border);padding:14px 16px;margin-bottom:12px;}
+.card-head{font-size:11px;color:var(--text2);font-weight:600;margin-bottom:12px;letter-spacing:.5px;text-transform:uppercase;}
+
+/* METRIC GRID */
+.m-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;}
+.m-cell{background:var(--surface2);border-radius:var(--radius-sm);padding:10px 12px;}
+.m-label{font-size:11px;color:var(--text3);margin-bottom:3px;}
+.m-val{font-size:20px;font-weight:600;color:var(--text);}
+.m-unit{font-size:11px;color:var(--text3);margin-left:2px;font-weight:400;}
+.badge{display:inline-block;font-size:11px;padding:2px 7px;border-radius:100px;margin-top:3px;font-weight:500;}
+.b-ok{background:var(--teal-l);color:var(--teal-t);}
+.b-warn{background:var(--amber-l);color:var(--amber-t);}
+.b-ng{background:var(--coral-l);color:var(--coral-t);}
+
+/* INPUT */
+.inp-group{margin-bottom:12px;}
+.inp-label{font-size:12px;color:var(--text2);margin-bottom:5px;display:block;font-weight:500;}
+.inp-row{display:flex;align-items:center;gap:8px;}
+.num-in{flex:1;height:44px;border-radius:var(--radius-sm);border:0.5px solid var(--border2);background:var(--surface2);color:var(--text);font-size:17px;text-align:center;font-family:inherit;outline:none;transition:border-color .15s;}
+.num-in:focus{border-color:var(--teal);}
+.inp-hint{font-size:11px;color:var(--text3);margin-top:3px;}
+.u-label{font-size:13px;color:var(--text3);min-width:36px;}
+.date-in{width:100%;height:44px;border-radius:var(--radius-sm);border:0.5px solid var(--border2);background:var(--surface2);color:var(--text);font-size:15px;padding:0 12px;font-family:inherit;outline:none;}
+.date-in:focus{border-color:var(--teal);}
+
+/* COUNTER */
+.counter-row{display:flex;align-items:center;gap:0;background:var(--surface2);border-radius:var(--radius-sm);border:0.5px solid var(--border2);overflow:hidden;}
+.cnt-btn{width:48px;height:44px;border:none;background:transparent;color:var(--text);font-size:22px;cursor:pointer;font-family:inherit;transition:background .15s;flex-shrink:0;}
+.cnt-btn:hover{background:var(--surface3);}
+.cnt-btn:active{transform:scale(0.95);}
+.cnt-val{flex:1;text-align:center;font-size:18px;font-weight:600;color:var(--text);}
+.cnt-unit{font-size:12px;color:var(--text3);padding-right:12px;}
+
+/* PROGRESS BAR */
+.prog-wrap{margin-top:8px;}
+.prog-bg{height:6px;background:var(--surface3);border-radius:3px;overflow:hidden;}
+.prog-fill{height:100%;border-radius:3px;background:var(--blue);transition:width .3s;}
+.prog-label{font-size:11px;color:var(--text3);margin-top:4px;}
+
+/* SAVE BTN */
+.save-btn{width:100%;height:50px;background:var(--teal);color:#fff;border:none;border-radius:var(--radius-sm);font-size:16px;font-weight:600;cursor:pointer;font-family:inherit;transition:background .15s;margin-top:4px;}
+.save-btn:hover{background:var(--teal-d);}
+.save-btn:active{transform:scale(0.98);}
+
+/* MEDICINE */
+.med-grid{display:grid;grid-template-columns:1fr;gap:6px;}
+.med-row{display:grid;grid-template-columns:1fr 56px 56px 56px;gap:6px;align-items:center;}
+.med-name{font-size:13px;color:var(--text);font-weight:500;padding:0 4px;}
+.med-time{font-size:10px;color:var(--text3);text-align:center;}
+.med-in{width:100%;height:36px;border-radius:6px;border:0.5px solid var(--border2);background:var(--surface2);color:var(--text);font-size:14px;text-align:center;font-family:inherit;outline:none;}
+.med-in:focus{border-color:var(--teal);}
+.med-header{display:grid;grid-template-columns:1fr 56px 56px 56px;gap:6px;margin-bottom:4px;}
+.med-h{font-size:10px;color:var(--text3);text-align:center;font-weight:500;}
+.med-h:first-child{text-align:left;padding-left:4px;}
+
+/* CHART */
+.sub-tabs{display:flex;gap:6px;margin-bottom:12px;}
+.sub-tab{font-size:12px;padding:4px 12px;border-radius:100px;border:0.5px solid var(--border2);cursor:pointer;background:transparent;color:var(--text2);font-family:inherit;transition:all .15s;}
+.sub-tab.on{background:var(--teal);color:#fff;border-color:var(--teal);}
+.legend{display:flex;gap:12px;margin-bottom:10px;flex-wrap:wrap;}
+.leg-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text2);}
+.leg-dot{width:10px;height:10px;border-radius:2px;}
+
+/* HISTORY */
+.hist-item{background:var(--surface);border-radius:var(--radius-sm);border:0.5px solid var(--border);padding:11px 14px;margin-bottom:8px;}
+.hist-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.hist-date{font-size:14px;font-weight:600;color:var(--text);}
+.hist-time{font-size:11px;color:var(--text3);}
+.hist-vals{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:6px;}
+.hist-col{text-align:center;background:var(--surface2);border-radius:6px;padding:6px 4px;}
+.hist-key{font-size:10px;color:var(--text3);margin-bottom:2px;}
+.hist-v{font-size:13px;font-weight:600;color:var(--text);}
+.hist-meds{margin-top:6px;padding-top:6px;border-top:0.5px solid var(--border);}
+.hist-med-row{display:flex;justify-content:space-between;font-size:12px;color:var(--text2);padding:2px 0;}
+.del-btn{background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;padding:4px 6px;border-radius:6px;transition:color .15s;}
+.del-btn:hover{color:var(--coral);}
+
+/* FILES */
+.file-list{display:flex;flex-direction:column;gap:8px;}
+.file-item{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface2);border-radius:var(--radius-sm);border:0.5px solid var(--border);}
+.file-icon{width:36px;height:36px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+.file-icon.img{background:var(--blue-l);}
+.file-icon.pdf{background:var(--coral-l);}
+.file-info{flex:1;min-width:0;}
+.file-name{font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.file-meta{font-size:11px;color:var(--text3);margin-top:2px;}
+.file-del{background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;padding:4px 6px;border-radius:6px;font-family:inherit;}
+.file-del:hover{color:var(--coral);}
+.file-add-btn{width:100%;height:44px;border-radius:var(--radius-sm);border:0.5px dashed var(--border2);background:transparent;color:var(--text2);font-size:14px;cursor:pointer;font-family:inherit;transition:all .15s;margin-top:8px;}
+.file-add-btn:hover{background:var(--surface2);color:var(--text);}
+
+/* SETTINGS */
+.settings-group{margin-bottom:16px;}
+.settings-label{font-size:12px;color:var(--text2);font-weight:600;margin-bottom:8px;display:block;}
+.settings-in{width:100%;height:40px;border-radius:var(--radius-sm);border:0.5px solid var(--border2);background:var(--surface2);color:var(--text);font-size:14px;padding:0 12px;font-family:inherit;outline:none;margin-bottom:6px;}
+.settings-in:focus{border-color:var(--teal);}
+.settings-btn{height:40px;padding:0 16px;border-radius:var(--radius-sm);border:0.5px solid var(--border2);background:var(--surface2);color:var(--text);font-size:13px;cursor:pointer;font-family:inherit;transition:all .15s;}
+.settings-btn:hover{background:var(--teal-l);color:var(--teal-t);border-color:var(--teal);}
+.settings-btn.danger{}.settings-btn.danger:hover{background:var(--coral-l);color:var(--coral-t);border-color:var(--coral);}
+.tool-row{display:flex;gap:8px;margin-bottom:8px;}
+.water-target-row{display:flex;align-items:center;gap:8px;}
+
+/* EMPTY */
+.empty{text-align:center;padding:36px 0;color:var(--text3);font-size:14px;line-height:2;}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--teal-d);color:#fff;padding:10px 20px;border-radius:var(--radius-sm);font-size:14px;font-weight:500;z-index:100;transition:transform .25s ease;white-space:nowrap;pointer-events:none;}
+.toast.show{transform:translateX(-50%) translateY(0);}
+
+/* DIVIDER */
+.divider{height:0.5px;background:var(--border);margin:12px 0;}
+.count-label{font-size:12px;color:var(--text3);margin-bottom:8px;}
+
+/* FILE HIDDEN INPUT */
+#file-input{display:none;}
+
+/* EDIT MODAL */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:50;overflow-y:auto;padding:20px 14px;}
+.modal-bg.open{display:block;}
+.modal{background:var(--surface);border-radius:var(--radius);border:0.5px solid var(--border);padding:18px 16px;max-width:410px;margin:0 auto;}
+.modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.modal-title{font-size:15px;font-weight:600;color:var(--text);}
+.modal-close{background:none;border:none;color:var(--text2);font-size:20px;cursor:pointer;padding:2px 6px;border-radius:6px;line-height:1;}
+.modal-close:hover{color:var(--text);}
+.modal-section{font-size:11px;color:var(--text2);font-weight:600;letter-spacing:.5px;text-transform:uppercase;margin:12px 0 8px;}
+.edit-btn{background:none;border:0.5px solid var(--border2);border-radius:6px;color:var(--text2);cursor:pointer;font-size:12px;padding:3px 9px;font-family:inherit;transition:all .15s;}
+.edit-btn:hover{background:var(--blue-l);color:var(--blue-t);border-color:var(--blue);}
+.save-btn.edit-mode{background:var(--blue);}
+.add-mode-bar{background:var(--blue-l);border:0.5px solid var(--blue);border-radius:var(--radius-sm);padding:8px 12px;margin-bottom:10px;font-size:13px;color:var(--blue-t);display:none;}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="header-row">
+      <span class="app-name">健康ログ</span>
+      <span class="today-lbl" id="today-lbl"></span>
+    </div>
+    <div class="tabs">
+      <button class="tab on" onclick="go('home')">ホーム</button>
+      <button class="tab" onclick="go('input')">記録</button>
+      <button class="tab" onclick="go('graph')">グラフ</button>
+      <button class="tab" onclick="go('history')">履歴</button>
+      <button class="tab" onclick="go('files')">書類</button>
+      <button class="tab" onclick="go('settings')">設定</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- HOME -->
+    <div class="sec on" id="sec-home">
+      <div class="card">
+        <div class="card-head">今日の記録</div>
+        <div class="m-grid">
+          <div class="m-cell">
+            <div class="m-label">収縮期（上）</div>
+            <div><span class="m-val" id="h-sys">--</span><span class="m-unit">mmHg</span></div>
+            <div id="h-badge"></div>
+          </div>
+          <div class="m-cell">
+            <div class="m-label">拡張期（下）</div>
+            <div><span class="m-val" id="h-dia">--</span><span class="m-unit">mmHg</span></div>
+          </div>
+          <div class="m-cell">
+            <div class="m-label">体重</div>
+            <div><span class="m-val" id="h-wt">--</span><span class="m-unit">kg</span></div>
+          </div>
+          <div class="m-cell">
+            <div class="m-label">脈拍</div>
+            <div><span class="m-val" id="h-pu">--</span><span class="m-unit">bpm</span></div>
+          </div>
+          <div class="m-cell">
+            <div class="m-label">排尿回数</div>
+            <div><span class="m-val" id="h-urine">--</span><span class="m-unit">回</span></div>
+          </div>
+          <div class="m-cell">
+            <div class="m-label">飲水量</div>
+            <div><span class="m-val" id="h-water">--</span><span class="m-unit">ml</span></div>
+          </div>
+          <div class="m-cell">
+            <div class="m-label">体温</div>
+            <div><span class="m-val" id="h-temp">--</span><span class="m-unit">℃</span></div>
+            <div id="h-temp-badge"></div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head">直近7件の平均</div>
+        <div class="m-grid">
+          <div class="m-cell">
+            <div class="m-label">平均血圧</div>
+            <div><span class="m-val" id="avg-bp">--</span><span class="m-unit">mmHg</span></div>
+          </div>
+          <div class="m-cell">
+            <div class="m-label">平均体重</div>
+            <div><span class="m-val" id="avg-wt">--</span><span class="m-unit">kg</span></div>
+          </div>
+          <div class="m-cell">
+            <div class="m-label">平均排尿回数</div>
+            <div><span class="m-val" id="avg-urine">--</span><span class="m-unit">回</span></div>
+          </div>
+          <div class="m-cell">
+            <div class="m-label">平均飲水量</div>
+            <div><span class="m-val" id="avg-water">--</span><span class="m-unit">ml</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- INPUT -->
+    <div class="sec" id="sec-input">
+      <div class="add-mode-bar" id="edit-mode-bar">更新モード：選択日の記録を読み込みました。編集後に上書き保存できます</div>
+
+      <div class="card">
+        <div class="card-head">記録日</div>
+        <input class="date-in" type="date" id="i-date" onchange="loadDateRecord(this.value)">
+        <div style="font-size:12px;margin-top:8px;padding:6px 10px;border-radius:var(--radius-sm);display:none;" id="date-status-bar"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">血圧・脈拍</div>
+        <div class="inp-group">
+          <label class="inp-label">収縮期（上）</label>
+          <div class="inp-row">
+            <input class="num-in" type="number" id="i-sys" min="60" max="250" placeholder="120">
+            <span class="u-label">mmHg</span>
+          </div>
+          <div class="inp-hint">正常値: 120未満</div>
+        </div>
+        <div class="inp-group">
+          <label class="inp-label">拡張期（下）</label>
+          <div class="inp-row">
+            <input class="num-in" type="number" id="i-dia" min="40" max="150" placeholder="80">
+            <span class="u-label">mmHg</span>
+          </div>
+          <div class="inp-hint">正常値: 80未満</div>
+        </div>
+        <div class="inp-group">
+          <label class="inp-label">脈拍（任意）</label>
+          <div class="inp-row">
+            <input class="num-in" type="number" id="i-pu" min="30" max="200" placeholder="70">
+            <span class="u-label">bpm</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">体重・体温</div>
+        <div class="inp-group">
+          <label class="inp-label">体重</label>
+          <div class="inp-row">
+            <input class="num-in" type="number" id="i-wt" min="20" max="300" step="0.1" placeholder="65.0">
+            <span class="u-label">kg</span>
+          </div>
+        </div>
+        <div class="inp-group" style="margin-bottom:0">
+          <label class="inp-label">体温（任意）</label>
+          <div class="inp-row">
+            <input class="num-in" type="number" id="i-temp" min="34" max="42" step="0.1" placeholder="36.5">
+            <span class="u-label">℃</span>
+          </div>
+          <div class="inp-hint">平熱目安: 36.0〜37.0℃　発熱: 37.5℃以上</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">排尿回数</div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:8px;" id="urine-sub">今日の累計に加算されます</div>
+        <div class="counter-row">
+          <button class="cnt-btn" onclick="adjCount('urine',-1)">−</button>
+          <span class="cnt-val" id="urine-val">0</span>
+          <span class="cnt-unit">回</span>
+          <button class="cnt-btn" onclick="adjCount('urine',1)">＋</button>
+        </div>
+        <div style="font-size:11px;color:var(--text3);margin-top:6px;" id="urine-saved-label"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">飲水量</div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:8px;" id="water-sub">200ml単位・今日の累計に加算されます</div>
+        <div class="counter-row">
+          <button class="cnt-btn" onclick="adjCount('water',-200)">−</button>
+          <span class="cnt-val" id="water-val">0</span>
+          <span class="cnt-unit">ml</span>
+          <button class="cnt-btn" onclick="adjCount('water',200)">＋</button>
+        </div>
+        <div class="prog-wrap">
+          <div class="prog-bg"><div class="prog-fill" id="water-prog" style="width:0%"></div></div>
+          <div class="prog-label" id="water-prog-label">目標: <span id="water-target-disp">2000</span>ml</div>
+        </div>
+      </div>
+
+      <div class="card" id="med-card" style="display:none">
+        <div class="card-head">服薬記録</div>
+        <div class="med-header">
+          <div class="med-h">薬の名前</div>
+          <div class="med-h">朝</div>
+          <div class="med-h">昼</div>
+          <div class="med-h">夕</div>
+        </div>
+        <div class="med-grid" id="med-grid"></div>
+      </div>
+
+      <button class="save-btn" id="save-btn" onclick="saveRecord()">保存する</button>
+    </div>
+
+    <!-- GRAPH -->
+    <div class="sec" id="sec-graph">
+      <div class="sub-tabs">
+        <button class="sub-tab on" onclick="switchG('bp',this)">血圧</button>
+        <button class="sub-tab" onclick="switchG('wt',this)">体重</button>
+        <button class="sub-tab" onclick="switchG('temp',this)">体温</button>
+        <button class="sub-tab" onclick="switchG('urine',this)">排尿</button>
+        <button class="sub-tab" onclick="switchG('water',this)">飲水</button>
+      </div>
+      <div class="card">
+        <div class="card-head" id="g-title">血圧の推移</div>
+        <div class="legend" id="g-legend">
+          <div class="leg-item"><div class="leg-dot" style="background:#1D9E75"></div>収縮期</div>
+          <div class="leg-item"><div class="leg-dot" style="background:#378ADD"></div>拡張期</div>
+        </div>
+        <div id="chart-wrap" style="width:100%;overflow:hidden;"></div>
+      </div>
+    </div>
+
+    <!-- HISTORY -->
+    <div class="sec" id="sec-history">
+      <div class="tool-row">
+        <button class="settings-btn" style="flex:1" onclick="exportCSV()">CSVエクスポート</button>
+      </div>
+      <div class="count-label" id="hist-count"></div>
+      <div id="hist-list"></div>
+    </div>
+
+    <!-- FILES -->
+    <div class="sec" id="sec-files">
+      <div class="card">
+        <div class="card-head">検査結果ファイル一覧</div>
+        <p style="font-size:12px;color:var(--text2);margin-bottom:12px;line-height:1.6;">
+          ファイル名・日付・メモを記録します。ファイル本体はスマホの「ファイル」アプリやGoogleドライブで管理してください。
+        </p>
+        <div class="file-list" id="file-list"></div>
+        <button class="file-add-btn" onclick="showAddFile()">＋ ファイル情報を追加</button>
+      </div>
+
+      <div class="card" id="add-file-card" style="display:none">
+        <div class="card-head">ファイル情報を追加</div>
+        <div class="inp-group">
+          <label class="inp-label">ファイル名・検査名</label>
+          <input class="settings-in" type="text" id="f-name" placeholder="例: 血液検査結果2024年4月">
+        </div>
+        <div class="inp-group">
+          <label class="inp-label">検査日</label>
+          <input class="date-in" type="date" id="f-date" style="margin-bottom:0">
+        </div>
+        <div class="inp-group" style="margin-top:10px">
+          <label class="inp-label">種別</label>
+          <select class="settings-in" id="f-type">
+            <option value="img">画像（写真・JPG・PNG）</option>
+            <option value="pdf">PDF</option>
+            <option value="other">その他</option>
+          </select>
+        </div>
+        <div class="inp-group">
+          <label class="inp-label">メモ（任意）</label>
+          <input class="settings-in" type="text" id="f-memo" placeholder="例: 担当医: 田中先生">
+        </div>
+        <div class="tool-row">
+          <button class="settings-btn" style="flex:1" onclick="addFile()">登録する</button>
+          <button class="settings-btn" onclick="hideAddFile()">キャンセル</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="sec" id="sec-settings">
+      <div class="card">
+        <div class="card-head">薬の設定（最大7種）</div>
+        <p style="font-size:12px;color:var(--text2);margin-bottom:12px;">薬の名前を入力して「追加」を押してください。「記録」タブに反映されます。</p>
+        <div id="med-settings-list"></div>
+        <div class="inp-row" id="med-add-row" style="margin-top:8px">
+          <input class="settings-in" type="text" id="new-med-name" placeholder="薬の名前を入力" style="margin-bottom:0;flex:1">
+          <button class="settings-btn" onclick="addMed()">追加</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">飲水目標</div>
+        <div class="water-target-row">
+          <input class="settings-in" type="number" id="water-target-in" min="500" max="5000" step="100" style="flex:1;margin-bottom:0">
+          <span class="u-label">ml</span>
+          <button class="settings-btn" onclick="saveWaterTarget()">保存</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">データ管理</div>
+        <div class="tool-row">
+          <button class="settings-btn" style="flex:1" onclick="exportCSV()">CSVエクスポート</button>
+          <button class="settings-btn danger" onclick="clearAll()">全データ削除</button>
+        </div>
+        <p style="font-size:11px;color:var(--text3);line-height:1.6;">データはこの端末のブラウザに保存されます。定期的にCSVでバックアップを取ることをお勧めします。</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const SK = 'health_log_v2';
+const SK_MEDS = 'health_meds_v2';
+const SK_FILES = 'health_files_v2';
+const SK_WATER_TARGET = 'health_water_target';
+
+let records = [];
+let meds = [];
+let files = [];
+let waterTarget = 2000;
+let urineCount = 0;
+let waterCount = 0;
+let curGraph = 'bp';
+let editIdx = -1;
+
+const TABS = ['home','input','graph','history','files','settings'];
+
+function pad(n){return String(n).padStart(2,'0');}
+function fmtDate(d){return d.getFullYear()+'/'+pad(d.getMonth()+1)+'/'+pad(d.getDate());}
+function isoToDisplay(iso){if(!iso)return'--';const p=iso.split('-');return p[0]+'/'+p[1]+'/'+p[2];}
+function todayISO(){const d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
+function shortDate(iso){if(!iso)return'';const p=iso.split('-');return p[1]+'/'+p[2];}
+
+function init(){
+  const r=localStorage.getItem(SK);
+  if(r){try{records=JSON.parse(r);}catch(e){records=[];}}
+  const m=localStorage.getItem(SK_MEDS);
+  if(m){try{meds=JSON.parse(m);}catch(e){meds=[];}}
+  const f=localStorage.getItem(SK_FILES);
+  if(f){try{files=JSON.parse(f);}catch(e){files=[];}}
+  const wt=localStorage.getItem(SK_WATER_TARGET);
+  if(wt){waterTarget=parseInt(wt)||2000;}
+  document.getElementById('today-lbl').textContent=fmtDate(new Date());
+  document.getElementById('f-date').value=todayISO();
+  document.getElementById('water-target-in').value=waterTarget;
+  document.getElementById('water-target-disp').textContent=waterTarget;
+  document.getElementById('i-date').value=todayISO();
+  loadDateRecord(todayISO());
+  updateHome();
+  renderMedSettings();
+}
+
+function saveLS(){localStorage.setItem(SK,JSON.stringify(records));}
+function saveMedLS(){localStorage.setItem(SK_MEDS,JSON.stringify(meds));}
+function saveFilesLS(){localStorage.setItem(SK_FILES,JSON.stringify(files));}
+
+function go(name){
+  TABS.forEach(s=>{document.getElementById('sec-'+s).classList.toggle('on',s===name);});
+  document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('on',TABS[i]===name));
+  if(name==='home')updateHome();
+  if(name==='graph')setTimeout(()=>drawChart(curGraph),60);
+  if(name==='history')renderHist();
+  if(name==='files')renderFiles();
+  if(name==='settings'){renderMedSettings();document.getElementById('water-target-in').value=waterTarget;}
+}
+
+function bpStatus(sys){
+  if(sys<120)return['正常','b-ok'];
+  if(sys<130)return['正常高値','b-warn'];
+  if(sys<140)return['高値血圧','b-warn'];
+  return['高血圧','b-ng'];
+}
+
+function updateHome(){
+  const today=todayISO();
+  const todays=records.filter(r=>r.date===today);
+  const last=todays.length?todays[todays.length-1]:null;
+  document.getElementById('h-sys').textContent=last?last.sys:'--';
+  document.getElementById('h-dia').textContent=last?last.dia:'--';
+  document.getElementById('h-wt').textContent=last?last.wt.toFixed(1):'--';
+  document.getElementById('h-pu').textContent=(last&&last.pu)?last.pu:'--';
+  document.getElementById('h-urine').textContent=last!==null?last.urine:'--';
+  document.getElementById('h-water').textContent=last!==null?last.water:'--';
+  document.getElementById('h-temp').textContent=(last&&last.temp)?last.temp.toFixed(1):'--';
+  const tempBadge=document.getElementById('h-temp-badge');
+  if(last&&last.temp){
+    if(last.temp>=38.0) tempBadge.innerHTML='<span class="badge b-ng">高熱</span>';
+    else if(last.temp>=37.5) tempBadge.innerHTML='<span class="badge b-warn">発熱</span>';
+    else if(last.temp>=37.0) tempBadge.innerHTML='<span class="badge b-warn">微熱</span>';
+    else tempBadge.innerHTML='<span class="badge b-ok">平熱</span>';
+  } else { tempBadge.innerHTML=''; }
+  const badgeEl=document.getElementById('h-badge');
+  if(last){const[lbl,cls]=bpStatus(last.sys);badgeEl.innerHTML=`<span class="badge ${cls}">${lbl}</span>`;}
+  else{badgeEl.innerHTML='';}
+  const last7=records.slice(-7);
+  if(last7.length){
+    document.getElementById('avg-bp').textContent=Math.round(last7.reduce((a,r)=>a+r.sys,0)/last7.length)+'/'+Math.round(last7.reduce((a,r)=>a+r.dia,0)/last7.length);
+    document.getElementById('avg-wt').textContent=(last7.reduce((a,r)=>a+r.wt,0)/last7.length).toFixed(1);
+    document.getElementById('avg-urine').textContent=Math.round(last7.reduce((a,r)=>a+(r.urine||0),0)/last7.length);
+    document.getElementById('avg-water').textContent=Math.round(last7.reduce((a,r)=>a+(r.water||0),0)/last7.length);
+  }else{
+    ['avg-bp','avg-wt','avg-urine','avg-water'].forEach(id=>document.getElementById(id).textContent='--');
+  }
+}
+
+function loadDateRecord(date){
+  if(!date)return;
+  // その日の最新レコードを探す
+  const dayRecs=records.filter(r=>r.date===date);
+  const last=dayRecs.length?dayRecs[dayRecs.length-1]:null;
+  const idx=last?records.lastIndexOf(last):-1;
+  const statusBar=document.getElementById('date-status-bar');
+
+  if(last){
+    // 既存データを全フォームに反映
+    editIdx=idx;
+    document.getElementById('i-sys').value=last.sys||'';
+    document.getElementById('i-dia').value=last.dia||'';
+    document.getElementById('i-pu').value=last.pu||'';
+    document.getElementById('i-wt').value=last.wt||'';
+    document.getElementById('i-temp').value=last.temp||'';
+    // 排尿・飲水は全レコードの累計
+    urineCount=dayRecs.reduce((a,r)=>a+(r.urine||0),0);
+    waterCount=dayRecs.reduce((a,r)=>a+(r.water||0),0);
+    document.getElementById('urine-val').textContent=urineCount;
+    document.getElementById('water-val').textContent=waterCount;
+    updateWaterBar();
+    // 薬の値を反映（名前でマッチング）
+    renderMedInputs();
+    if(last.meds&&last.meds.length){
+      meds.forEach((med,i)=>{
+        const saved=last.meds.find(m=>m.name===med.name);
+        if(!saved)return;
+        const am=document.getElementById('med-'+i+'-am');
+        const pm=document.getElementById('med-'+i+'-pm');
+        const ev=document.getElementById('med-'+i+'-ev');
+        if(am)am.value=saved.am||'';
+        if(pm)pm.value=saved.pm||'';
+        if(ev)ev.value=saved.ev||'';
+      });
+    }
+    // UI: 更新モード表示
+    document.getElementById('edit-mode-bar').style.display='block';
+    document.getElementById('save-btn').textContent='上書き保存する';
+    document.getElementById('save-btn').classList.add('edit-mode');
+    document.getElementById('urine-sub').textContent='この日の累計（都度追加できます）';
+    document.getElementById('water-sub').textContent='200ml単位 ・ この日の累計（都度追加できます）';
+    statusBar.style.display='block';
+    statusBar.style.background='var(--blue-l)';
+    statusBar.style.color='var(--blue-t)';
+    statusBar.textContent=isoToDisplay(date)+'の記録を読み込みました';
+  }else{
+    // 新規モード：フォームをクリア
+    editIdx=-1;
+    document.getElementById('i-sys').value='';
+    document.getElementById('i-dia').value='';
+    document.getElementById('i-pu').value='';
+    document.getElementById('i-wt').value='';
+    document.getElementById('i-temp').value='';
+    urineCount=0;waterCount=0;
+    document.getElementById('urine-val').textContent='0';
+    document.getElementById('water-val').textContent='0';
+    updateWaterBar();
+    renderMedInputs();
+    document.getElementById('edit-mode-bar').style.display='none';
+    document.getElementById('save-btn').textContent='保存する';
+    document.getElementById('save-btn').classList.remove('edit-mode');
+    document.getElementById('urine-sub').textContent='今日の累計に加算されます';
+    document.getElementById('water-sub').textContent='200ml単位・今日の累計に加算されます';
+    statusBar.style.display='block';
+    statusBar.style.background='var(--surface2)';
+    statusBar.style.color='var(--text3)';
+    statusBar.textContent=isoToDisplay(date)+'の記録はまだありません（新規作成）';
+  }
+}
+
+function updateWaterBar(){
+  const pct=Math.min(100,Math.round(waterCount/waterTarget*100));
+  document.getElementById('water-prog').style.width=pct+'%';
+  document.getElementById('water-prog-label').innerHTML='目標: <span id="water-target-disp">'+waterTarget+'</span>ml　達成率: '+pct+'%';
+}
+
+function updateCounterSavedLabel(){
+  const savedUrine=records.filter(r=>r.date===todayISO()).reduce((a,r)=>a+(r.urine||0),0);
+  const savedWater=records.filter(r=>r.date===todayISO()).reduce((a,r)=>a+(r.water||0),0);
+  const ul=document.getElementById('urine-saved-label');
+  const wl=document.getElementById('water-sub');
+  if(ul) ul.textContent=savedUrine>0?'保存済み累計: '+savedUrine+'回（追加分が加算されます）':'';
+  if(wl) wl.textContent=savedWater>0?'200ml単位 ・ 保存済み累計: '+savedWater+'ml（追加分が加算されます）':'200ml単位・今日の累計に加算されます';
+}
+
+function adjCount(type,delta){
+  if(type==='urine'){
+    urineCount=Math.max(0,urineCount+delta);
+    document.getElementById('urine-val').textContent=urineCount;
+  }else{
+    waterCount=Math.max(0,waterCount+delta);
+    document.getElementById('water-val').textContent=waterCount;
+    updateWaterBar();
+  }
+}
+
+function renderMedInputs(){
+  const card=document.getElementById('med-card');
+  const grid=document.getElementById('med-grid');
+  if(!meds.length){card.style.display='none';return;}
+  card.style.display='';
+  grid.innerHTML=meds.map((m,i)=>`
+    <div class="med-row">
+      <div class="med-name">${m.name}</div>
+      <input class="med-in" type="number" id="med-${i}-am" min="0" max="99" step="0.5" placeholder="0">
+      <input class="med-in" type="number" id="med-${i}-pm" min="0" max="99" step="0.5" placeholder="0">
+      <input class="med-in" type="number" id="med-${i}-ev" min="0" max="99" step="0.5" placeholder="0">
+    </div>`).join('');
+}
+
+function getMedValues(){
+  return meds.map((m,i)=>({
+    name:m.name,
+    am:parseFloat(document.getElementById('med-'+i+'-am').value)||0,
+    pm:parseFloat(document.getElementById('med-'+i+'-pm').value)||0,
+    ev:parseFloat(document.getElementById('med-'+i+'-ev').value)||0
+  }));
+}
+
+function saveRecord(){
+  const sys=parseInt(document.getElementById('i-sys').value);
+  const dia=parseInt(document.getElementById('i-dia').value);
+  const pu=parseInt(document.getElementById('i-pu').value)||0;
+  const wt=parseFloat(document.getElementById('i-wt').value);
+  const temp=parseFloat(document.getElementById('i-temp').value)||0;
+  const date=document.getElementById('i-date').value;
+  if(!date){toast('日付を選択してください',true);return;}
+  if(!sys||!dia||isNaN(wt)){toast('血圧と体重を入力してください',true);return;}
+  if(sys<60||sys>250||dia<40||dia>150){toast('血圧の値を確認してください',true);return;}
+  if(wt<20||wt>300){toast('体重の値を確認してください',true);return;}
+  const now=new Date();
+  const newRec={
+    date,
+    time:pad(now.getHours())+':'+pad(now.getMinutes()),
+    sys,dia,pu,wt,
+    urine:urineCount,
+    water:waterCount,
+    temp:temp||0,
+    meds:getMedValues()
+  };
+
+  if(editIdx>=0&&editIdx<records.length&&records[editIdx].date===date){
+    // 既存レコードを上書き
+    records[editIdx]=newRec;
+    toast('記録を上書き保存しました');
+  }else{
+    // 新規追加
+    records.push(newRec);
+    records.sort((a,b)=>a.date.localeCompare(b.date));
+    toast('記録を保存しました');
+  }
+  saveLS();
+  // 保存後にその日のデータを再読み込みして画面を同期
+  loadDateRecord(date);
+  updateHome();
+}
+
+function editRecord(idx){
+  const r=records[idx];
+  document.getElementById('i-date').value=r.date;
+  loadDateRecord(r.date);
+  go('input');
+  window.scrollTo(0,0);
+}
+
+function clearEditMode(){
+  editIdx=-1;
+  const today=todayISO();
+  document.getElementById('i-date').value=today;
+  loadDateRecord(today);
+}
+
+function switchG(type,btn){
+  curGraph=type;
+  document.querySelectorAll('.sub-tab').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  const titles={bp:'血圧の推移',wt:'体重の推移',temp:'体温の推移',urine:'排尿回数の推移',water:'飲水量の推移'};
+  document.getElementById('g-title').textContent=titles[type];
+  const showLeg=type==='bp';
+  document.getElementById('g-legend').style.display=showLeg?'flex':'none';
+  drawChart(type);
+}
+
+function drawChart(type){
+  const data=records.slice(-14);
+  const wrap=document.getElementById('chart-wrap');
+  if(!data.length){wrap.innerHTML='<div class="empty" style="padding:24px 0">データがありません</div>';return;}
+
+  const W=wrap.clientWidth||340;
+  const H=220;
+  const PAD={top:16,right:16,bottom:40,left:44};
+  const cW=W-PAD.left-PAD.right;
+  const cH=H-PAD.top-PAD.bottom;
+  const labels=data.map(r=>shortDate(r.date));
+  const n=data.length;
+  const xStep=cW/(n>1?n-1:1);
+
+  function xPos(i){return PAD.left+(n>1?i*xStep:cW/2);}
+
+  // データと設定を定義
+  let series=[];
+  let yMin,yMax,yStep,yFmt;
+
+  if(type==='bp'){
+    const allV=data.flatMap(r=>[r.sys,r.dia]);
+    yMin=Math.floor((Math.min(...allV)-10)/10)*10;
+    yMax=Math.ceil((Math.max(...allV)+10)/10)*10;
+    yStep=20; yFmt=v=>v;
+    series=[
+      {vals:data.map(r=>r.sys),color:'#1D9E75',fill:'rgba(29,158,117,0.10)'},
+      {vals:data.map(r=>r.dia),color:'#378ADD',fill:'rgba(55,138,221,0.08)'}
+    ];
+  }else if(type==='wt'){
+    const vals=data.map(r=>r.wt);
+    yMin=Math.floor(Math.min(...vals)-1);
+    yMax=Math.ceil(Math.max(...vals)+1);
+    yStep=1; yFmt=v=>v.toFixed(1);
+    series=[{vals,color:'#D85A30',fill:'rgba(216,90,48,0.10)'}];
+  }else if(type==='temp'){
+    const vals=data.map(r=>r.temp||null).filter(v=>v);
+    yMin=35; yMax=40; yStep=0.5; yFmt=v=>v.toFixed(1);
+    series=[{vals:data.map(r=>r.temp||null),color:'#D4537E',fill:'rgba(212,83,126,0.08)',spanGaps:false}];
+  }else if(type==='urine'){
+    const vals=data.map(r=>r.urine||0);
+    yMin=0; yMax=Math.max(10,Math.ceil(Math.max(...vals))+1);
+    yStep=Math.ceil(yMax/5)||1; yFmt=v=>v;
+    series=[{vals,bar:true,color:'rgba(127,119,221,0.65)',stroke:'#7F77DD'}];
+  }else{
+    const vals=data.map(r=>r.water||0);
+    yMin=0; yMax=Math.max(2000,Math.ceil(Math.max(...vals)/200)*200+200);
+    yStep=500; yFmt=v=>(v>=1000?v/1000+'L':v);
+    series=[{vals,bar:true,color:'rgba(55,138,221,0.55)',stroke:'#378ADD'}];
+  }
+
+  function yPos(v){return PAD.top+cH-(v-yMin)/(yMax-yMin)*cH;}
+
+  // SVG構築
+  let svg=`<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="display:block;font-family:-apple-system,sans-serif;">`;
+
+  // Y軸グリッド＆ラベル
+  for(let v=yMin;v<=yMax;v+=yStep){
+    const y=yPos(v);
+    svg+=`<line x1="${PAD.left}" y1="${y.toFixed(1)}" x2="${W-PAD.right}" y2="${y.toFixed(1)}" stroke="rgba(128,128,128,0.15)" stroke-width="1"/>`;
+    svg+=`<text x="${PAD.left-6}" y="${(y+4).toFixed(1)}" text-anchor="end" font-size="10" fill="#888">${yFmt(v)}</text>`;
+  }
+
+  // X軸ラベル
+  labels.forEach((lbl,i)=>{
+    const x=xPos(i);
+    const rotate=n>7?`rotate(-40,${x},${H-PAD.bottom+14})`:'';
+    const anchor=n>7?'end':'middle';
+    svg+=`<text x="${x}" y="${H-PAD.bottom+14}" text-anchor="${anchor}" font-size="10" fill="#888" transform="${rotate}">${lbl}</text>`;
+  });
+
+  // データ描画
+  series.forEach(s=>{
+    if(s.bar){
+      const bw=Math.max(8,Math.min(28,xStep*0.55));
+      data.forEach((r,i)=>{
+        const v=s.vals[i]||0;
+        if(!v)return;
+        const x=xPos(i)-bw/2;
+        const y=yPos(v);
+        const bh=yPos(yMin)-y;
+        svg+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" fill="${s.color}" rx="2"/>`;
+        svg+=`<text x="${(xPos(i)).toFixed(1)}" y="${(y-4).toFixed(1)}" text-anchor="middle" font-size="9" fill="${s.stroke}">${s.vals[i]}</text>`;
+      });
+    }else{
+      // フィルエリア
+      const pts=data.map((r,i)=>{const v=s.vals[i];return v!=null?{x:xPos(i),y:yPos(v)}:null;});
+      // 折れ線をセグメントに分割（nullで切断）
+      let segs=[[]];
+      pts.forEach(p=>{if(p){segs[segs.length-1].push(p);}else{if(segs[segs.length-1].length)segs.push([]);}});
+      segs.filter(sg=>sg.length).forEach(sg=>{
+        if(sg.length>1){
+          const areaD=`M${sg[0].x.toFixed(1)},${yPos(yMin).toFixed(1)} `+sg.map(p=>`L${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')+` L${sg[sg.length-1].x.toFixed(1)},${yPos(yMin).toFixed(1)} Z`;
+          svg+=`<path d="${areaD}" fill="${s.fill}" stroke="none"/>`;
+        }
+        const lineD=sg.map((p,i)=>`${i===0?'M':'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+        svg+=`<path d="${lineD}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+        sg.forEach(p=>{
+          svg+=`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4" fill="${s.color}" stroke="#fff" stroke-width="1.5"/>`;
+        });
+      });
+    }
+  });
+
+  svg+=`</svg>`;
+  wrap.innerHTML=svg;
+}
+
+function renderHist(){
+  const el=document.getElementById('hist-list');
+  document.getElementById('hist-count').textContent='全'+records.length+'件';
+  if(!records.length){el.innerHTML='<div class="empty">記録がありません</div>';return;}
+  el.innerHTML=[...records].reverse().map((r,idx)=>{
+    const realIdx=records.length-1-idx;
+    const[lbl,cls]=bpStatus(r.sys);
+    const medHTML=r.meds&&r.meds.length?`<div class="hist-meds">${r.meds.filter(m=>m.am||m.pm||m.ev).map(m=>`<div class="hist-med-row"><span>${m.name}</span><span>朝${m.am} 昼${m.pm} 夕${m.ev}</span></div>`).join('')}</div>`:'';
+    return`<div class="hist-item">
+      <div class="hist-top">
+        <div><div class="hist-date">${isoToDisplay(r.date)}</div><div class="hist-time">${r.time||''}</div></div>
+        <div style="display:flex;align-items:center;gap:8px"><span class="badge ${cls}">${lbl}</span><button class="edit-btn" onclick="editRecord(${realIdx})">編集</button><button class="del-btn" onclick="delRecord(${realIdx})">✕</button></div>
+      </div>
+      <div class="hist-vals">
+        <div class="hist-col"><div class="hist-key">血圧</div><div class="hist-v">${r.sys}/${r.dia}</div></div>
+        <div class="hist-col"><div class="hist-key">体重</div><div class="hist-v">${r.wt.toFixed(1)}<span style="font-size:10px;color:var(--text3)">kg</span></div></div>
+        <div class="hist-col"><div class="hist-key">排尿</div><div class="hist-v">${r.urine||0}<span style="font-size:10px;color:var(--text3)">回</span></div></div>
+        <div class="hist-col"><div class="hist-key">飲水</div><div class="hist-v">${r.water||0}<span style="font-size:10px;color:var(--text3)">ml</span></div></div>
+        <div class="hist-col"><div class="hist-key">体温</div><div class="hist-v">${r.temp?r.temp.toFixed(1):'--'}<span style="font-size:10px;color:var(--text3)">℃</span></div></div>
+      </div>
+      ${medHTML}
+    </div>`;
+  }).join('');
+}
+
+function delRecord(idx){
+  if(!confirm('この記録を削除しますか？'))return;
+  records.splice(idx,1);saveLS();renderHist();toast('削除しました');
+}
+
+function exportCSV(){
+  if(!records.length){toast('データがありません',true);return;}
+  const medHeaders=meds.length?meds.flatMap(m=>[m.name+'_朝',m.name+'_昼',m.name+'_夕']):[];
+  const header=['日付','時刻','収縮期(mmHg)','拡張期(mmHg)','脈拍(bpm)','体重(kg)','体温(℃)','排尿回数','飲水量(ml)',...medHeaders].join(',');
+  const rows=records.map(r=>{
+    const medVals=meds.length?(r.meds||[]).flatMap(m=>[m.am||0,m.pm||0,m.ev||0]):[];
+    return[isoToDisplay(r.date),r.time||'',r.sys,r.dia,r.pu||'',r.wt.toFixed(1),r.temp?r.temp.toFixed(1):'',r.urine||0,r.water||0,...medVals].join(',');
+  });
+  const csv='\uFEFF'+header+'\n'+rows.join('\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download='健康ログ_'+todayISO().replace(/-/g,'')+'.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('CSVを保存しました');
+}
+
+function clearAll(){
+  if(!confirm('すべての記録を削除しますか？\nこの操作は元に戻せません。'))return;
+  records=[];saveLS();updateHome();toast('全データを削除しました');
+}
+
+// MEDS
+function addMed(){
+  const inp=document.getElementById('new-med-name');
+  const name=inp.value.trim();
+  if(!name){toast('薬の名前を入力してください',true);return;}
+  if(meds.length>=7){toast('薬は最大7種まです',true);return;}
+  if(meds.find(m=>m.name===name)){toast('同じ名前の薬が既にあります',true);return;}
+  meds.push({name});saveMedLS();inp.value='';
+  renderMedSettings();renderMedInputs();
+  toast(name+'を追加しました');
+}
+
+function removeMed(i){
+  meds.splice(i,1);saveMedLS();renderMedSettings();renderMedInputs();toast('削除しました');
+}
+
+function renderMedSettings(){
+  const el=document.getElementById('med-settings-list');
+  const addRow=document.getElementById('med-add-row');
+  if(!meds.length){el.innerHTML='<p style="font-size:13px;color:var(--text3);margin-bottom:8px;">まだ薬が登録されていません</p>';addRow.style.display='flex';return;}
+  el.innerHTML=meds.map((m,i)=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><div style="flex:1;font-size:14px;color:var(--text)">${m.name}</div><button class="del-btn" onclick="removeMed(${i})">✕</button></div>`).join('');
+  addRow.style.display=meds.length<7?'flex':'none';
+}
+
+function saveWaterTarget(){
+  const v=parseInt(document.getElementById('water-target-in').value);
+  if(!v||v<500||v>5000){toast('500〜5000mlで設定してください',true);return;}
+  waterTarget=v;localStorage.setItem(SK_WATER_TARGET,v);
+  document.getElementById('water-target-disp').textContent=v;
+  toast('飲水目標を'+v+'mlに設定しました');
+}
+
+// FILES
+function renderFiles(){
+  const el=document.getElementById('file-list');
+  if(!files.length){el.innerHTML='<div class="empty" style="padding:20px 0">登録されたファイルがありません</div>';return;}
+  el.innerHTML=[...files].reverse().map((f,idx)=>{
+    const realIdx=files.length-1-idx;
+    const icon=f.type==='pdf'?'📄':f.type==='img'?'🖼️':'📁';
+    const iconCls=f.type==='pdf'?'pdf':f.type==='img'?'img':'';
+    return`<div class="file-item">
+      <div class="file-icon ${iconCls}" style="font-size:18px;line-height:36px;text-align:center;">${icon}</div>
+      <div class="file-info">
+        <div class="file-name">${f.name}</div>
+        <div class="file-meta">${isoToDisplay(f.date)}${f.memo?' ・ '+f.memo:''}</div>
+      </div>
+      <button class="file-del" onclick="delFile(${realIdx})">✕</button>
+    </div>`;
+  }).join('');
+}
+
+function showAddFile(){document.getElementById('add-file-card').style.display='';}
+function hideAddFile(){document.getElementById('add-file-card').style.display='none';}
+
+function addFile(){
+  const name=document.getElementById('f-name').value.trim();
+  const date=document.getElementById('f-date').value;
+  const type=document.getElementById('f-type').value;
+  const memo=document.getElementById('f-memo').value.trim();
+  if(!name){toast('ファイル名を入力してください',true);return;}
+  if(!date){toast('検査日を選択してください',true);return;}
+  files.push({name,date,type,memo});saveFilesLS();
+  document.getElementById('f-name').value='';
+  document.getElementById('f-memo').value='';
+  document.getElementById('f-date').value=todayISO();
+  hideAddFile();renderFiles();
+  toast('ファイル情報を登録しました');
+}
+
+function delFile(idx){
+  if(!confirm('この記録を削除しますか？'))return;
+  files.splice(idx,1);saveFilesLS();renderFiles();toast('削除しました');
+}
+
+function toast(msg,isErr){
+  const t=document.getElementById('toast');
+  t.textContent=msg;
+  t.style.background=isErr?'#993C1D':'#0F6E56';
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2200);
+}
+
+init();
+</script>
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js');
+  });
+}
+</script>
+</body>
+</html>
