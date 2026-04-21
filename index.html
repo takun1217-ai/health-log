@@ -732,18 +732,14 @@ function saveRecord(){
 
 async function sendToSheet(rec){
   try{
-    const res=await fetch(GAS_URL,{
+    await fetch(GAS_URL,{
       method:'POST',
+      mode:'no-cors',
       body:JSON.stringify(rec)
     });
-    const json=await res.json();
-    if(json.status==='ok'){
-      toast(json.action==='updated'?'スプレッドシートを更新しました':'スプレッドシートに送信しました');
-      flushPending();
-    }else{
-      queuePending(rec);
-      toast('送信失敗：次回オンライン時に再送します',true);
-    }
+    toast('スプレッドシートに送信しました');
+    // 成功したので保留キューから削除
+    removePending(rec);
   }catch(e){
     queuePending(rec);
     toast('オフライン：次回オンライン時に自動送信します',true);
@@ -758,6 +754,13 @@ function queuePending(rec){
   localStorage.setItem(SK_PENDING,JSON.stringify(q));
 }
 
+function removePending(rec){
+  let q=[];
+  try{q=JSON.parse(localStorage.getItem(SK_PENDING)||'[]');}catch(e){}
+  const key=rec.date+'_'+rec.time;
+  localStorage.setItem(SK_PENDING,JSON.stringify(q.filter(r=>r.date+'_'+r.time!==key)));
+}
+
 async function flushPending(){
   let q=[];
   try{q=JSON.parse(localStorage.getItem(SK_PENDING)||'[]');}catch(e){}
@@ -765,9 +768,7 @@ async function flushPending(){
   const failed=[];
   for(const rec of q){
     try{
-      const res=await fetch(GAS_URL,{method:'POST',body:JSON.stringify(rec)});
-      const json=await res.json();
-      if(json.status!=='ok')failed.push(rec);
+      await fetch(GAS_URL,{method:'POST',mode:'no-cors',body:JSON.stringify(rec)});
     }catch(e){failed.push(rec);}
   }
   localStorage.setItem(SK_PENDING,JSON.stringify(failed));
