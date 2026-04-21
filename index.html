@@ -458,6 +458,10 @@ html,body{height:100%;background:var(--bg);font-family:-apple-system,'Hiragino S
           <button class="settings-btn" style="flex:1;background:var(--blue-l);color:var(--blue-t);border-color:var(--blue);" onclick="document.getElementById('csv-import-input').click()">CSVインポート（端末移行）</button>
           <input type="file" id="csv-import-input" accept=".csv" style="display:none" onchange="importCSV(this)">
         </div>
+        <div class="tool-row" style="margin-top:0">
+          <button class="settings-btn" style="flex:1" onclick="flushPending().then(()=>toast('未送信データの再送を試みました'))">未送信データを再送</button>
+          <button class="settings-btn" onclick="checkPending()">送信状況確認</button>
+        </div>
         <div id="import-result" style="display:none;font-size:12px;padding:8px 10px;border-radius:var(--radius-sm);margin-top:4px;line-height:1.6;"></div>
         <p style="font-size:11px;color:var(--text3);line-height:1.6;margin-top:8px;">端末を変えるときは旧端末でエクスポート→新端末でインポートしてください。重複データは自動でスキップされます。</p>
       </div>
@@ -472,6 +476,8 @@ const SK = 'health_log_v2';
 const SK_MEDS = 'health_meds_v2';
 const SK_FILES = 'health_files_v2';
 const SK_WATER_TARGET = 'health_water_target';
+const SK_PENDING = 'health_pending_v2';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbxCkqq8WH6feHl0P_3jlQY8ETUBWErk9JCNPQjUKm9rhDvSl1DRd3MCwp5stJILO25Ppw/exec';
 
 let records = [];
 let meds = [];
@@ -507,6 +513,8 @@ function init(){
   loadDateRecord(todayISO());
   updateHome();
   renderMedSettings();
+  // 起動時に未送信データを再送
+  setTimeout(flushPending, 2000);
 }
 
 function saveLS(){localStorage.setItem(SK,JSON.stringify(records));}
@@ -715,9 +723,55 @@ function saveRecord(){
     toast('記録を保存しました');
   }
   saveLS();
+  // スプレッドシートに送信
+  sendToSheet(newRec);
   // 保存後にその日のデータを再読み込みして画面を同期
   loadDateRecord(date);
   updateHome();
+}
+
+async function sendToSheet(rec){
+  try{
+    const res=await fetch(GAS_URL,{
+      method:'POST',
+      body:JSON.stringify(rec)
+    });
+    const json=await res.json();
+    if(json.status==='ok'){
+      toast(json.action==='updated'?'スプレッドシートを更新しました':'スプレッドシートに送信しました');
+      flushPending();
+    }else{
+      queuePending(rec);
+      toast('送信失敗：次回オンライン時に再送します',true);
+    }
+  }catch(e){
+    queuePending(rec);
+    toast('オフライン：次回オンライン時に自動送信します',true);
+  }
+}
+
+function queuePending(rec){
+  let q=[];
+  try{q=JSON.parse(localStorage.getItem(SK_PENDING)||'[]');}catch(e){}
+  const key=rec.date+'_'+rec.time;
+  if(!q.find(r=>r.date+'_'+r.time===key))q.push(rec);
+  localStorage.setItem(SK_PENDING,JSON.stringify(q));
+}
+
+async function flushPending(){
+  let q=[];
+  try{q=JSON.parse(localStorage.getItem(SK_PENDING)||'[]');}catch(e){}
+  if(!q.length)return;
+  const failed=[];
+  for(const rec of q){
+    try{
+      const res=await fetch(GAS_URL,{method:'POST',body:JSON.stringify(rec)});
+      const json=await res.json();
+      if(json.status!=='ok')failed.push(rec);
+    }catch(e){failed.push(rec);}
+  }
+  localStorage.setItem(SK_PENDING,JSON.stringify(failed));
+  if(failed.length<q.length)toast((q.length-failed.length)+'件の未送信データを送信しました');
 }
 
 function editRecord(idx){
@@ -1000,6 +1054,13 @@ function importCSV(input){
     input.value='';
   };
   reader.readAsText(file,'UTF-8');
+}
+
+function checkPending(){
+  let q=[];
+  try{q=JSON.parse(localStorage.getItem(SK_PENDING)||'[]');}catch(e){}
+  if(q.length===0){toast('未送信データはありません');}
+  else{toast(q.length+'件の未送信データがあります',true);}
 }
 
 function showImportResult(msg,ok){
