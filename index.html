@@ -732,13 +732,9 @@ function saveRecord(){
 
 async function sendToSheet(rec){
   try{
-    await fetch(GAS_URL,{
-      method:'POST',
-      mode:'no-cors',
-      body:JSON.stringify(rec)
-    });
+    const json=encodeURIComponent(JSON.stringify(rec));
+    await fetch(GAS_URL+'?data='+json,{method:'GET',mode:'no-cors'});
     toast('スプレッドシートに送信しました');
-    // 成功したので保留キューから削除
     removePending(rec);
   }catch(e){
     queuePending(rec);
@@ -768,7 +764,8 @@ async function flushPending(){
   const failed=[];
   for(const rec of q){
     try{
-      await fetch(GAS_URL,{method:'POST',mode:'no-cors',body:JSON.stringify(rec)});
+      const json=encodeURIComponent(JSON.stringify(rec));
+      await fetch(GAS_URL+'?data='+json,{method:'GET',mode:'no-cors'});
     }catch(e){failed.push(rec);}
   }
   localStorage.setItem(SK_PENDING,JSON.stringify(failed));
