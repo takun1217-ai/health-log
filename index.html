@@ -456,6 +456,9 @@ html,body{height:100%;background:var(--bg);font-family:-apple-system,'Hiragino S
           <button class="settings-btn danger" onclick="clearAll()">全データ削除</button>
         </div>
         <div class="tool-row" style="margin-top:0">
+          <button class="settings-btn" style="flex:1;background:var(--teal-l);color:var(--teal-t);border-color:var(--teal);" onclick="importFromSheet()">スプレッドシートから読み込む</button>
+        </div>
+        <div class="tool-row" style="margin-top:0">
           <button class="settings-btn" style="flex:1;background:var(--blue-l);color:var(--blue-t);border-color:var(--blue);" onclick="document.getElementById('csv-import-input').click()">CSVインポート（端末移行）</button>
           <input type="file" id="csv-import-input" accept=".csv" style="display:none" onchange="importCSV(this)">
         </div>
@@ -1053,6 +1056,42 @@ function importCSV(input){
     input.value='';
   };
   reader.readAsText(file,'UTF-8');
+}
+
+async function importFromSheet(){
+  toast('スプレッドシートから読み込み中...');
+  try{
+    const res=await fetch(GAS_URL+'?action=fetch');
+    const json=await res.json();
+    if(json.status!=='ok'){toast('読み込み失敗：'+json.message,true);return;}
+    const incoming=json.records||[];
+    if(!incoming.length){toast('スプレッドシートにデータがありません',true);return;}
+    // 既存キーセット
+    const existingKeys=new Set(records.map(r=>r.date+'_'+r.time));
+    let added=0,updated=0;
+    incoming.forEach(r=>{
+      const key=r.date+'_'+r.time;
+      const idx=records.findIndex(e=>e.date+'_'+e.time===key);
+      if(idx>=0){
+        records[idx]={...records[idx],...r};
+        updated++;
+      }else{
+        records.push(r);
+        added++;
+      }
+    });
+    records.sort((a,b)=>a.date.localeCompare(b.date));
+    saveLS();
+    updateHome();
+    loadDateRecord(todayISO());
+    let msg='読み込み完了：'+added+'件追加';
+    if(updated)msg+=', '+updated+'件更新';
+    toast(msg);
+    showImportResult(msg,true);
+  }catch(e){
+    toast('読み込み失敗：通信エラー',true);
+    showImportResult('スプレッドシートへの接続に失敗しました。オンラインか確認してください。',false);
+  }
 }
 
 function checkPending(){
